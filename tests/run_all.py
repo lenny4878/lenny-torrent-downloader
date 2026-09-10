@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 root=Path(__file__).resolve().parents[1]
-suites=['test_integration.py','test_tray.py','test_windows_identity.py','test_playback.py','test_basic_ui.py']
+suites=['test_integration.py','test_tray.py','test_windows_identity.py','test_playback.py','test_basic_ui.py','test_i18n.py']
 results=[]
 for suite in suites:
     print(f'\nRunning {suite}',flush=True)

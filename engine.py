@@ -1,3 +1,4 @@
+from i18n import tr, set_language
 import json
 import os
 import time
@@ -18,9 +19,9 @@ def validate_info(ti):
     for i in range(fs.num_files()):
         name = fs.file_path(i).replace('\\', '/')
         if name.startswith('/') or '..' in name.split('/') or ':' in name:
-            raise ValueError('种子包含不安全的文件路径')
+            raise ValueError(tr('种子包含不安全的文件路径'))
         if fs.file_flags(i) & lt.file_storage.flag_symlink:
-            raise ValueError('暂不支持包含符号链接的种子')
+            raise ValueError(tr('暂不支持包含符号链接的种子'))
     return ti
 
 def inspect_torrent(path):
@@ -49,10 +50,11 @@ class Engine:
         self.root.mkdir(parents=True, exist_ok=True)
         self.items, self.pending, self.errors = {}, set(), []
         self.listeners = []
-        self.config = dict(download=0, upload=512, active=3, seed=False,
+        self.config = dict(download=0, upload=512, active=3, seed=False, language='zh',
                            folder=str(Path.home() / 'Downloads' / 'Torrent'))
         if (self.root / 'settings.json').exists():
             self.config.update(json.loads((self.root / 'settings.json').read_text('utf-8')))
+        set_language(self.config['language'])
         settings = dict(listen_interfaces='0.0.0.0:0', enable_dht=True, enable_lsd=True,
                         enable_upnp=False, enable_natpmp=False, ignore_limits_on_local_network=False,
                         alert_mask=int(lt.alert.category_t.error_notification |
@@ -69,7 +71,7 @@ class Engine:
                     item.setdefault('mode', 'running' if item.get('wanted') else 'paused')
                     if item['mode'] == 'deleting':
                         item['mode'] = 'stopped'
-                        self.errors.append('上次删除未完成，请检查文件后重试：' + item['name'])
+                        self.errors.append(tr('上次删除未完成，请检查文件后重试：') + item['name'])
                     item.update(handle=None, message='')
                     p = self.params(item)
                     item['_ti'] = validate_info(p.ti) if p.ti else None
@@ -77,7 +79,7 @@ class Engine:
                     if item['mode'] != 'stopped':
                         item['handle'] = self.session.add_torrent(p)
                 except Exception as e:
-                    self.errors.append('恢复任务失败：' + str(e))
+                    self.errors.append(tr('恢复任务失败：') + str(e))
 
     def params(self, item):
         key = item['key']
@@ -117,17 +119,17 @@ class Engine:
         hashes = p.info_hashes if magnet else ti.info_hashes()
         key = str(hashes.v2 if hashes.has_v2() else hashes.v1)
         if key in self.items:
-            raise ValueError('这个任务已经存在')
+            raise ValueError(tr('这个任务已经存在'))
         # Compare both hashes, so hybrid torrent/magnet aliases cannot create duplicate tasks.
         for x in self.items.values():
             other = self.params(x).info_hashes if not x.get('_ti') else x['_ti'].info_hashes()
             if ((hashes.has_v1() and other.has_v1() and hashes.v1 == other.v1) or
                 (hashes.has_v2() and other.has_v2() and hashes.v2 == other.v2)):
-                raise ValueError('这个任务已经存在')
+                raise ValueError(tr('这个任务已经存在'))
         if ti:
             priorities = priorities if priorities is not None else default_priorities(ti)
             if len(priorities) != ti.num_files() or not any(priorities):
-                raise ValueError('请至少选择一个文件')
+                raise ValueError(tr('请至少选择一个文件'))
             p.ti, p.file_priorities = ti, priorities
         Path(folder).mkdir(parents=True, exist_ok=True)
         p.save_path = str(Path(folder).resolve())
@@ -136,7 +138,7 @@ class Engine:
         h = self.session.add_torrent(p)
         if ti:
             atomic(self.root / (key + '.torrent'), Path(source).read_bytes())
-        self.items[key] = dict(key=key, name=ti.name() if ti else p.name or '磁力链接 · 获取文件信息',
+        self.items[key] = dict(key=key, name=ti.name() if ti else p.name or tr('磁力链接 · 获取文件信息'),
             folder=p.save_path, priorities=priorities or [], wanted=wanted,
             mode='running' if wanted else 'paused', handle=h, message='', _ti=ti,
             magnet=str(source).strip() if magnet else '')
@@ -183,7 +185,7 @@ class Engine:
                 ti = self.params(item).ti
             if ti is None:
                 if item.get('summary',{}).get('done',0) or item.get('priorities'):
-                    raise ValueError('缺少下载文件信息，无法安全删除文件。请先开始任务获取信息，或取消勾选删除文件，仅移除任务。')
+                    raise ValueError(tr('缺少下载文件信息，无法安全删除文件。请先开始任务获取信息，或取消勾选删除文件，仅移除任务。'))
                 # A metadata-less magnet has no payload files or disk storage to delete.
                 self.remove(key,False)
                 return
@@ -192,14 +194,14 @@ class Engine:
                 root = Path(item['folder']).resolve()
                 targets = {(root / fs.file_path(i)).resolve() for i in range(fs.num_files())}
                 if any(not p.is_relative_to(root) for p in targets):
-                    raise ValueError('文件路径超出保存目录，已取消删除')
+                    raise ValueError(tr('文件路径超出保存目录，已取消删除'))
                 for other in self.items.values():
                     if other is item or not other.get('_ti'):
                         continue
                     ofs = other['_ti'].files()
                     paths = {(Path(other['folder']) / ofs.file_path(i)).resolve() for i in range(ofs.num_files())}
                     if targets & paths:
-                        raise ValueError('文件与另一个任务共用，请先移除任务并保留文件')
+                        raise ValueError(tr('文件与另一个任务共用，请先移除任务并保留文件'))
             if item.get('handle') is None:
                 item['handle'] = self.session.add_torrent(self.params(item))
             item.update(mode='deleting', wanted=False)
@@ -243,12 +245,12 @@ class Engine:
                 if item.pop('_detach', False):
                     self.session.remove_torrent(item['handle'])
                     item['handle'] = None
-                    item['message'] = '续传状态保存失败；再次开始时会校验已有文件。'
+                    item['message'] = tr('续传状态保存失败；再次开始时会校验已有文件。')
             elif isinstance(a, lt.torrent_deleted_alert):
                 self.forget(key)
             elif isinstance(a, lt.torrent_delete_failed_alert):
-                error = a.error.message() if a.error.value() else '下载文件信息或存储尚未就绪，请重新开始任务后重试'
-                item.update(handle=None, mode='stopped', message='文件删除失败：' + error)
+                error = a.error.message() if a.error.value() else tr('下载文件信息或存储尚未就绪，请重新开始任务后重试')
+                item.update(handle=None, mode='stopped', message=tr('文件删除失败：') + error)
                 self.errors.append(item['message'])
                 self.persist()
             elif isinstance(a, (lt.tracker_error_alert, lt.file_error_alert, lt.torrent_error_alert)):
@@ -305,21 +307,21 @@ class Engine:
 
 def status_text(item, s):
     if item.get('mode') == 'deleting':
-        return '正在删除文件'
+        return tr('正在删除文件')
     if item.get('mode') == 'stopped':
-        return '已停止'
+        return tr('已停止')
     if s.errc.value():
-        return '错误：' + s.errc.message()
+        return tr('错误：') + s.errc.message()
     if s.is_finished:
-        return '已完成 · 做种中' if not s.paused else '已完成'
+        return tr('已完成 · 做种中') if not s.paused else tr('已完成')
     if not item['wanted']:
-        return '已暂停'
+        return tr('已暂停')
     if s.paused:
-        return '排队中'
+        return tr('排队中')
     if not s.has_metadata:
-        return '正在获取磁力链接信息'
+        return tr('正在获取磁力链接信息')
     if s.state in (lt.torrent_status.checking_files, lt.torrent_status.checking_resume_data):
-        return '校验已有文件'
+        return tr('校验已有文件')
     if s.download_payload_rate:
-        return '下载中'
-    return '已连接，等待数据' if s.num_peers else '正在寻找下载来源'
+        return tr('下载中')
+    return tr('已连接，等待数据') if s.num_peers else tr('正在寻找下载来源')

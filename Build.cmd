@@ -7,5 +7,5 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
-echo Built dist\LennyTorrentDownloader.exe
+echo Built dist\LennyTD.exe
 pause

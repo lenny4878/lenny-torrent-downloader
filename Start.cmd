@@ -1,8 +1,8 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-if exist "dist\LennyTorrentDownloader.exe" (
-  start "" "%~dp0dist\LennyTorrentDownloader.exe" %*
+if exist "dist\LennyTD.exe" (
+  start "" "%~dp0dist\LennyTD.exe" %*
   exit /b 0
 )
 if not exist ".venv\Scripts\pythonw.exe" (

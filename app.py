@@ -1,3 +1,4 @@
+from i18n import tr, LANGUAGES, language, set_language, retranslate_widgets
 import os
 import sys
 from pathlib import Path
@@ -32,7 +33,7 @@ def theme(app):
         QTableWidget::item { padding:8px; border-bottom:1px solid #f0f3f8; }
         QHeaderView::section { background:#f9fbfe; color:#7b879a; font-size:12px; padding:12px 8px; border:0; border-bottom:1px solid #e9eef5; }
         QPlainTextEdit { background:white; border:1px solid #e5eaf2; border-radius:10px; padding:12px; }
-        QLineEdit,QSpinBox { background:white; border:1px solid #dce3ee; border-radius:7px; padding:8px; selection-background-color:#356cf6; }
+        QLineEdit,QSpinBox,QComboBox { background:white; border:1px solid #dce3ee; border-radius:7px; padding:8px; selection-background-color:#356cf6; }
         QLineEdit:focus,QSpinBox:focus { border-color:#356cf6; }
         QProgressBar { background:#e9effa; border:0; border-radius:5px; min-height:10px; max-height:10px; }
         QProgressBar::chunk { background:#5684f7; border-radius:5px; }
@@ -68,18 +69,23 @@ def completed_files(item):
 class SettingsDialog(W.QDialog):
     def __init__(self, config, parent=None):
         super().__init__(parent)
-        self.setWindowTitle('设置')
+        self.setWindowTitle(tr('设置'))
         self.setMinimumWidth(650)
         layout = W.QFormLayout(self)
         layout.setContentsMargins(28, 24, 28, 24)
         layout.setSpacing(18)
-        title = W.QLabel('下载偏好')
+        title = W.QLabel(tr('下载偏好'))
         title.setObjectName('heading')
         layout.addRow(title)
         self.fields = {}
-        for key, label, low, high in [('download','下载上限（KB/s，0 为不限）',0,1000000),
-                                      ('upload','上传上限（KB/s，0 为不限）',0,1000000),
-                                      ('active','同时运行任务数',1,20)]:
+        self.language = W.QComboBox()
+        for code, name in LANGUAGES.items():
+            self.language.addItem(name, code)
+        self.language.setCurrentIndex(self.language.findData(config.get('language', 'zh')))
+        layout.addRow('语言 / Language', self.language)
+        for key, label, low, high in [('download',tr('下载上限（KB/s，0 为不限）'),0,1000000),
+                                      ('upload',tr('上传上限（KB/s，0 为不限）'),0,1000000),
+                                      ('active',tr('同时运行任务数'),1,20)]:
             spin = W.QSpinBox()
             spin.setRange(low, high)
             spin.setValue(config[key])
@@ -89,38 +95,38 @@ class SettingsDialog(W.QDialog):
         self.folder.setMinimumWidth(280)
         row = W.QHBoxLayout()
         row.addWidget(self.folder, 1)
-        browse = W.QPushButton('选择文件夹…')
+        browse = W.QPushButton(tr('选择文件夹…'))
         browse.clicked.connect(self.browse)
         row.addWidget(browse)
-        layout.addRow('默认保存目录', row)
-        hint = W.QLabel('用于新添加的任务；已有下载仍保存在原位置。')
+        layout.addRow(tr('默认保存目录'), row)
+        hint = W.QLabel(tr('用于新添加的任务；已有下载仍保存在原位置。'))
         hint.setObjectName('muted')
         layout.addRow(hint)
-        self.seed = W.QCheckBox('下载完成后继续上传做种')
+        self.seed = W.QCheckBox(tr('下载完成后继续上传做种'))
         self.seed.setChecked(config['seed'])
         layout.addRow(self.seed)
         buttons = W.QDialogButtonBox(W.QDialogButtonBox.Save | W.QDialogButtonBox.Cancel)
-        buttons.button(W.QDialogButtonBox.Save).setText('保存设置')
+        buttons.button(W.QDialogButtonBox.Save).setText(tr('保存设置'))
         buttons.button(W.QDialogButtonBox.Save).setObjectName('primary')
-        buttons.button(W.QDialogButtonBox.Cancel).setText('取消')
+        buttons.button(W.QDialogButtonBox.Cancel).setText(tr('取消'))
         buttons.accepted.connect(self.validate)
         buttons.rejected.connect(self.reject)
         layout.addRow(buttons)
 
     def browse(self):
-        folder = W.QFileDialog.getExistingDirectory(self, '选择默认保存文件夹', self.folder.text())
+        folder = W.QFileDialog.getExistingDirectory(self, tr('选择默认保存文件夹'), self.folder.text())
         if folder:
             self.folder.setText(folder)
 
     def validate(self):
         if not self.folder.text().strip():
-            W.QMessageBox.warning(self, '请选择目录', '请选择或填写默认保存目录。')
+            W.QMessageBox.warning(self, tr('请选择目录'), tr('请选择或填写默认保存目录。'))
             return
         self.accept()
 
     def values(self):
         return dict(**{k:v.value() for k,v in self.fields.items()},
-                    folder=self.folder.text().strip(), seed=self.seed.isChecked())
+                    folder=self.folder.text().strip(), seed=self.seed.isChecked(), language=self.language.currentData())
 
 
 def size(n):
@@ -133,15 +139,16 @@ def size(n):
 class AddDialog(W.QDialog):
     def __init__(self, source, folder, parent):
         super().__init__(parent)
-        self.setWindowTitle('添加种子 · 选择下载内容')
+        self.setWindowTitle(tr('添加种子 · 选择下载内容'))
         self.resize(740, 460)
         ti = inspect_torrent(source)
         layout = W.QVBoxLayout(self)
         title = W.QLabel(ti.name())
+        title.setProperty('user_content', True)
         title.setTextFormat(QtCore.Qt.PlainText)
         layout.addWidget(title)
         self.files = W.QTreeWidget()
-        self.files.setHeaderLabels(['文件', '大小'])
+        self.files.setHeaderLabels([tr('文件'), tr('大小')])
         fs = ti.files()
         video_ext = {'.mp4', '.mkv', '.avi', '.mov', '.wmv', '.m4v', '.ts', '.webm', '.mpg', '.mpeg'}
         has_video = any(Path(fs.file_path(i)).suffix.lower() in video_ext for i in range(fs.num_files()))
@@ -158,9 +165,9 @@ class AddDialog(W.QDialog):
         self.files.header().setSectionResizeMode(1, W.QHeaderView.ResizeToContents)
         layout.addWidget(self.files)
         if has_video:
-            layout.addWidget(W.QLabel('已默认勾选视频文件；其他文件可按需手动勾选。'))
+            layout.addWidget(W.QLabel(tr('已默认勾选视频文件；其他文件可按需手动勾选。')))
         select = W.QHBoxLayout()
-        for label, state in [('全选', QtCore.Qt.Checked), ('全不选', QtCore.Qt.Unchecked)]:
+        for label, state in [(tr('全选'), QtCore.Qt.Checked), (tr('全不选'), QtCore.Qt.Unchecked)]:
             b = W.QPushButton(label)
             b.clicked.connect(lambda checked=False, state=state: self.select(state))
             select.addWidget(b)
@@ -168,18 +175,18 @@ class AddDialog(W.QDialog):
         layout.addLayout(select)
         row = W.QHBoxLayout()
         self.folder = W.QLineEdit(folder)
-        row.addWidget(W.QLabel('保存位置'))
+        row.addWidget(W.QLabel(tr('保存位置')))
         row.addWidget(self.folder)
-        browse = W.QPushButton('浏览…')
+        browse = W.QPushButton(tr('浏览…'))
         browse.clicked.connect(self.browse)
         row.addWidget(browse)
         layout.addLayout(row)
-        self.start = W.QCheckBox('添加后开始下载')
+        self.start = W.QCheckBox(tr('添加后开始下载'))
         self.start.setChecked(True)
         layout.addWidget(self.start)
         buttons = W.QDialogButtonBox(W.QDialogButtonBox.Ok | W.QDialogButtonBox.Cancel)
-        buttons.button(W.QDialogButtonBox.Ok).setText('添加任务')
-        buttons.button(W.QDialogButtonBox.Cancel).setText('取消')
+        buttons.button(W.QDialogButtonBox.Ok).setText(tr('添加任务'))
+        buttons.button(W.QDialogButtonBox.Cancel).setText(tr('取消'))
         buttons.accepted.connect(self.validate)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
@@ -191,7 +198,7 @@ class AddDialog(W.QDialog):
                 item.setCheckState(0, state)
 
     def browse(self):
-        folder = W.QFileDialog.getExistingDirectory(self, '选择保存目录', self.folder.text())
+        folder = W.QFileDialog.getExistingDirectory(self, tr('选择保存目录'), self.folder.text())
         if folder:
             self.folder.setText(folder)
 
@@ -201,7 +208,7 @@ class AddDialog(W.QDialog):
 
     def validate(self):
         if not any(self.priorities()) or not self.folder.text().strip():
-            W.QMessageBox.warning(self, '请检查', '请至少勾选一个文件并填写保存目录。')
+            W.QMessageBox.warning(self, tr('请检查'), tr('请至少勾选一个文件并填写保存目录。'))
         else:
             self.accept()
 
@@ -210,6 +217,7 @@ class Window(W.QMainWindow):
     def __init__(self, engine):
         super().__init__()
         self.engine = engine
+        set_language(engine.config.get('language', 'zh'))
         self._shut_down = False
         self._restore_maximized = False
         self._tray_hint_shown = False
@@ -235,24 +243,33 @@ class Window(W.QMainWindow):
         titles = W.QVBoxLayout()
         titles.setSpacing(2)
         heading = W.QLabel(APP_NAME)
+        heading.setWordWrap(True)
         heading.setObjectName('heading')
         titles.addWidget(heading)
-        caption = W.QLabel(f'本地下载 · 边下边看  /  {VERSION}')
+        caption = W.QLabel(tr('本地下载 · 边下边看  /  {v0}', v0=f'{VERSION}'))
         caption.setObjectName('muted')
+        caption.setWordWrap(True)
         titles.addWidget(caption)
-        header.addLayout(titles)
+        header.addLayout(titles, 1)
         header.addStretch()
-        self.tray_button = W.QPushButton('收起到托盘')
+        self.language_combo = W.QComboBox()
+        self.language_combo.setAccessibleName('Language')
+        for code, name in LANGUAGES.items():
+            self.language_combo.addItem(name, code)
+        self.language_combo.setCurrentIndex(self.language_combo.findData(language()))
+        self.language_combo.currentIndexChanged.connect(self.change_language)
+        header.addWidget(self.language_combo)
+        self.tray_button = W.QPushButton(tr('收起到托盘'))
         self.tray_button.clicked.connect(self.minimize_to_tray)
         header.addWidget(self.tray_button)
-        setting = W.QPushButton('设置')
+        setting = W.QPushButton(tr('设置'))
         setting.clicked.connect(self.settings)
         header.addWidget(setting)
         layout.addLayout(header)
         metrics = W.QHBoxLayout()
         metrics.setSpacing(14)
         self.metrics = []
-        for label in ('全部任务', '正在运行', '下载速度', '上传速度'):
+        for label in (tr('全部任务'), tr('正在运行'), tr('下载速度'), tr('上传速度')):
             card = W.QFrame()
             card.setObjectName('card')
             box = W.QVBoxLayout(card)
@@ -266,19 +283,19 @@ class Window(W.QMainWindow):
             self.metrics.append(value)
             metrics.addWidget(card)
         layout.addLayout(metrics)
-        bar = W.QHBoxLayout()
-        for label, callback in [('＋ 添加种子', self.pick), ('添加磁力链接', self.add_magnet), ('开始', lambda: self.toggle(True)),
-                                ('暂停', lambda: self.toggle(False)), ('停止',self.stop), ('打开文件', self.open_file),
-                                ('打开目录', self.open_folder), ('移除任务', self.remove)]:
+        bar = W.QGridLayout()
+        for label, callback in [(tr('＋ 添加种子'), self.pick), (tr('添加磁力链接'), self.add_magnet), (tr('开始'), lambda: self.toggle(True)),
+                                (tr('暂停'), lambda: self.toggle(False)), (tr('停止'),self.stop), (tr('打开文件'), self.open_file),
+                                (tr('打开目录'), self.open_folder), (tr('移除任务'), self.remove)]:
             button = W.QPushButton(label)
             button.clicked.connect(callback)
-            if label == '＋ 添加种子':
+            if label == tr('＋ 添加种子'):
                 button.setObjectName('primary')
-            bar.addWidget(button)
-        bar.addStretch()
+            index = bar.count()
+            bar.addWidget(button, index // 4, index % 4)
         layout.addLayout(bar)
         self.table = W.QTableWidget(0, 7)
-        self.table.setHorizontalHeaderLabels(['名称', '进度', '下载速度', '上传速度', '连接', '状态', '播放'])
+        self.table.setHorizontalHeaderLabels([tr('名称'), tr('进度'), tr('下载速度'), tr('上传速度'), tr('连接'), tr('状态'), tr('播放')])
         for col in range(self.table.columnCount()):
             self.table.horizontalHeaderItem(col).setTextAlignment(
                 (QtCore.Qt.AlignLeft if col == 0 else QtCore.Qt.AlignHCenter) | QtCore.Qt.AlignVCenter)
@@ -294,16 +311,16 @@ class Window(W.QMainWindow):
         self.table.setColumnWidth(6, 130)
         self.table.itemSelectionChanged.connect(self.details)
         self.table.cellDoubleClicked.connect(lambda row, col: self.open_file() if col != 6 else None)
-        self.table.setToolTip('双击已完成任务打开文件；包含多个文件时可选择要打开的文件。')
+        self.table.setToolTip(tr('双击已完成任务打开文件；包含多个文件时可选择要打开的文件。'))
         layout.addWidget(self.table, 3)
-        info = W.QLabel('任务详情     ·     双击已完成任务即可打开文件')
+        info = W.QLabel(tr('任务详情     ·     双击已完成任务即可打开文件'))
         info.setObjectName('eyebrow')
         layout.addWidget(info)
         self.detail = W.QPlainTextEdit()
         self.detail.setReadOnly(True)
         self.detail.setMaximumHeight(170)
         layout.addWidget(self.detail, 1)
-        self.footer = W.QLabel('就绪')
+        self.footer = W.QLabel(tr('就绪'))
         self.footer.setObjectName('muted')
         layout.addWidget(self.footer)
         self.timer = QtCore.QTimer(self)
@@ -318,9 +335,9 @@ class Window(W.QMainWindow):
         self.tray = W.QSystemTrayIcon(self.windowIcon(),self)
         self.tray.setToolTip(f'{APP_NAME} {VERSION}')
         menu = W.QMenu(self)
-        menu.addAction('显示主窗口',self.restore_window)
+        menu.addAction(tr('显示主窗口'),self.restore_window)
         menu.addSeparator()
-        menu.addAction('退出并停止下载',self.exit_app)
+        menu.addAction(tr('退出并停止下载'),self.exit_app)
         self.tray.setContextMenu(menu)
         self.tray.activated.connect(self.tray_activated)
         self.tray.messageClicked.connect(self.restore_window)
@@ -328,10 +345,10 @@ class Window(W.QMainWindow):
             self.tray.show()
         else:
             self.tray_button.setEnabled(False)
-            self.tray_button.setToolTip('当前桌面环境没有可用的系统托盘')
+            self.tray_button.setToolTip(tr('当前桌面环境没有可用的系统托盘'))
         self.refresh()
         if engine.errors:
-            W.QMessageBox.warning(self, '部分任务未能恢复', '\n'.join(engine.errors))
+            W.QMessageBox.warning(self, tr('部分任务未能恢复'), '\n'.join(engine.errors))
 
     def minimize_to_tray(self):
         if self._shut_down or not W.QSystemTrayIcon.isSystemTrayAvailable() or not self.tray.isVisible():
@@ -341,7 +358,7 @@ class Window(W.QMainWindow):
         self.hide()
         if not self._tray_hint_shown:
             self._tray_hint_shown = True
-            self.tray.showMessage(APP_NAME,'已收起到系统托盘，下载继续。双击图标恢复，右键可退出。',W.QSystemTrayIcon.Information,3000)
+            self.tray.showMessage(APP_NAME,tr('已收起到系统托盘，下载继续。双击图标恢复，右键可退出。'),W.QSystemTrayIcon.Information,3000)
 
     def restore_window(self):
         if self._shut_down:
@@ -373,44 +390,44 @@ class Window(W.QMainWindow):
         return cell.data(QtCore.Qt.UserRole) if cell else None
 
     def pick(self):
-        source, _ = W.QFileDialog.getOpenFileName(self, '选择种子文件', str(Path.home() / 'Downloads'), '种子文件 (*.torrent)')
+        source, _ = W.QFileDialog.getOpenFileName(self, tr('选择种子文件'), str(Path.home() / 'Downloads'), tr('种子文件 (*.torrent)'))
         if source:
             self.add(source)
 
     def add_magnet(self, uri=''):
         dialog = W.QDialog(self)
-        dialog.setWindowTitle('添加磁力链接')
+        dialog.setWindowTitle(tr('添加磁力链接'))
         dialog.resize(680, 240)
         layout = W.QFormLayout(dialog)
         uri_input = W.QLineEdit(uri if isinstance(uri,str) else '')
         uri_input.setPlaceholderText('magnet:?xt=urn:btih:…')
-        layout.addRow('磁力链接',uri_input)
+        layout.addRow(tr('磁力链接'),uri_input)
         folder = W.QLineEdit(self.engine.config['folder'])
         row = W.QHBoxLayout()
         row.addWidget(folder,1)
-        browse = W.QPushButton('选择文件夹…')
+        browse = W.QPushButton(tr('选择文件夹…'))
         def choose():
-            path = W.QFileDialog.getExistingDirectory(dialog,'选择保存目录',folder.text())
+            path = W.QFileDialog.getExistingDirectory(dialog,tr('选择保存目录'),folder.text())
             if path:
                 folder.setText(path)
         browse.clicked.connect(choose)
         row.addWidget(browse)
-        layout.addRow('保存目录',row)
-        hint = W.QLabel('先获取文件信息，再自动下载视频；没有视频时下载全部普通文件。')
+        layout.addRow(tr('保存目录'),row)
+        hint = W.QLabel(tr('先获取文件信息，再自动下载视频；没有视频时下载全部普通文件。'))
         hint.setWordWrap(True)
         layout.addRow(hint)
         buttons = W.QDialogButtonBox(W.QDialogButtonBox.Ok | W.QDialogButtonBox.Cancel)
-        buttons.button(W.QDialogButtonBox.Ok).setText('添加并开始')
-        buttons.button(W.QDialogButtonBox.Cancel).setText('取消')
+        buttons.button(W.QDialogButtonBox.Ok).setText(tr('添加并开始'))
+        buttons.button(W.QDialogButtonBox.Cancel).setText(tr('取消'))
         def accept():
             try:
                 value = uri_input.text().strip()
                 if not value.startswith('magnet:?') or not folder.text().strip():
-                    raise ValueError('请填写有效的磁力链接和保存目录')
+                    raise ValueError(tr('请填写有效的磁力链接和保存目录'))
                 self.engine.add(value,folder.text().strip())
                 dialog.accept()
             except Exception as e:
-                W.QMessageBox.warning(dialog,'无法添加',str(e))
+                W.QMessageBox.warning(dialog,tr('无法添加'),str(e))
         buttons.accepted.connect(accept)
         buttons.rejected.connect(dialog.reject)
         layout.addRow(buttons)
@@ -424,7 +441,7 @@ class Window(W.QMainWindow):
                 self.engine.add(source, dialog.folder.text().strip(), dialog.priorities(), dialog.start.isChecked())
                 self.refresh()
         except Exception as e:
-            W.QMessageBox.warning(self, '无法添加种子', str(e))
+            W.QMessageBox.warning(self, tr('无法添加种子'), str(e))
 
     def dragEnterEvent(self, event):
         if event.mimeData().text().strip().startswith('magnet:?') or any(u.isLocalFile() and u.toLocalFile().lower().endswith('.torrent') for u in event.mimeData().urls()):
@@ -473,7 +490,7 @@ class Window(W.QMainWindow):
             return
         index,ready = self.stream.readiness(item)
         if index is None or ready < 1:
-            W.QMessageBox.information(self,'视频正在准备','请等待起播分片下载完成。')
+            W.QMessageBox.information(self,tr('视频正在准备'),tr('请等待起播分片下载完成。'))
             return
         self.close_player(key)
         from player import Player
@@ -494,19 +511,19 @@ class Window(W.QMainWindow):
             return
         item = self.engine.items[key]
         if not task_status(item).is_finished:
-            W.QMessageBox.information(self, '尚未完成', '文件下载完成后即可直接打开。')
+            W.QMessageBox.information(self, tr('尚未完成'), tr('文件下载完成后即可直接打开。'))
             return
         files = completed_files(item)
         if not files:
-            W.QMessageBox.warning(self, '找不到文件', '下载文件可能已被移动或删除，请检查保存目录。')
+            W.QMessageBox.warning(self, tr('找不到文件'), tr('下载文件可能已被移动或删除，请检查保存目录。'))
             return
         path = files[0][0]
         if len(files) > 1:
             dialog = W.QDialog(self)
-            dialog.setWindowTitle('选择要打开的文件')
+            dialog.setWindowTitle(tr('选择要打开的文件'))
             dialog.resize(700, 360)
             box = W.QVBoxLayout(dialog)
-            box.addWidget(W.QLabel('选择文件后打开，也可以双击；文件按大小排列。'))
+            box.addWidget(W.QLabel(tr('选择文件后打开，也可以双击；文件按大小排列。')))
             listing = W.QListWidget()
             for file, length in files:
                 row = W.QListWidgetItem(f'{file.relative_to(Path(item["folder"]).resolve())}   ·   {size(length)}')
@@ -515,8 +532,8 @@ class Window(W.QMainWindow):
             listing.setCurrentRow(0)
             box.addWidget(listing)
             buttons = W.QDialogButtonBox(W.QDialogButtonBox.Open | W.QDialogButtonBox.Cancel)
-            buttons.button(W.QDialogButtonBox.Open).setText('打开文件')
-            buttons.button(W.QDialogButtonBox.Cancel).setText('取消')
+            buttons.button(W.QDialogButtonBox.Open).setText(tr('打开文件'))
+            buttons.button(W.QDialogButtonBox.Cancel).setText(tr('取消'))
             buttons.accepted.connect(dialog.accept)
             buttons.rejected.connect(dialog.reject)
             listing.itemDoubleClicked.connect(lambda _: dialog.accept())
@@ -525,27 +542,28 @@ class Window(W.QMainWindow):
                 return
             path = files[listing.currentRow()][0]
         if path.suffix.lower() in {'.exe','.com','.bat','.cmd','.ps1','.vbs','.js','.msi','.scr','.lnk','.url','.hta','.reg'}:
-            W.QMessageBox.information(self, '请从目录打开', '此文件是程序、脚本或快捷方式，请在保存目录中自行检查后打开。')
+            W.QMessageBox.information(self, tr('请从目录打开'), tr('此文件是程序、脚本或快捷方式，请在保存目录中自行检查后打开。'))
             return
         if not QtGui.QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(str(path))):
-            W.QMessageBox.warning(self, '无法打开文件', '系统未能打开此文件，请检查默认播放器或文件关联。')
+            W.QMessageBox.warning(self, tr('无法打开文件'), tr('系统未能打开此文件，请检查默认播放器或文件关联。'))
 
     def remove(self):
         key = self.key()
         if not key:
             return
         dialog = W.QDialog(self)
-        dialog.setWindowTitle('删除任务')
+        dialog.setWindowTitle(tr('删除任务'))
         layout = W.QVBoxLayout(dialog)
         name = W.QLabel(self.engine.items[key]['name'])
+        name.setProperty('user_content', True)
         name.setTextFormat(QtCore.Qt.PlainText)
         layout.addWidget(name)
-        delete = W.QCheckBox('同时永久删除此任务已下载的文件（不进入回收站）')
+        delete = W.QCheckBox(tr('同时永久删除此任务已下载的文件（不进入回收站）'))
         layout.addWidget(delete)
-        layout.addWidget(W.QLabel('未勾选时，仅删除任务记录，保留下载内容。'))
+        layout.addWidget(W.QLabel(tr('未勾选时，仅删除任务记录，保留下载内容。')))
         buttons = W.QDialogButtonBox(W.QDialogButtonBox.Ok | W.QDialogButtonBox.Cancel)
-        buttons.button(W.QDialogButtonBox.Ok).setText('删除任务')
-        buttons.button(W.QDialogButtonBox.Cancel).setText('取消')
+        buttons.button(W.QDialogButtonBox.Ok).setText(tr('删除任务'))
+        buttons.button(W.QDialogButtonBox.Cancel).setText(tr('取消'))
         buttons.accepted.connect(dialog.accept)
         buttons.rejected.connect(dialog.reject)
         layout.addWidget(buttons)
@@ -555,13 +573,26 @@ class Window(W.QMainWindow):
                 self.engine.remove(key,delete.isChecked())
                 self.refresh()
             except Exception as e:
-                W.QMessageBox.warning(self,'无法删除',str(e))
+                W.QMessageBox.warning(self,tr('无法删除'),str(e))
 
     def settings(self):
         dialog = SettingsDialog(self.engine.config, self)
         if dialog.exec() == W.QDialog.Accepted:
             self.engine.config.update(dialog.values())
             self.engine.apply_settings()
+            self.change_language(code=self.engine.config['language'])
+
+    def change_language(self, index=None, code=None):
+        code = code or self.language_combo.currentData()
+        old = language()
+        set_language(code)
+        self.engine.config['language'] = language()
+        self.engine.apply_settings()
+        self.language_combo.blockSignals(True)
+        self.language_combo.setCurrentIndex(self.language_combo.findData(language()))
+        self.language_combo.blockSignals(False)
+        retranslate_widgets(self, old)
+        self.refresh()
 
     def refresh(self):
         self.engine.tick()
@@ -611,8 +642,8 @@ class Window(W.QMainWindow):
             play.setProperty('key',key)
             video,ready = self.stream.readiness(item)
             play.setEnabled(video is not None and ready >= 1)
-            play.setText('▶ 播放' if ready >= 1 else f'缓冲 {ready:.0%}' if video is not None else '—')
-            play.setToolTip('优先预览选中文件中最大的一个视频。下载不足时播放会等待缓冲。')
+            play.setText(tr('▶ 播放') if ready >= 1 else tr('缓冲 {v0}', v0=f'{ready:.0%}') if video is not None else '—')
+            play.setToolTip(tr('优先预览选中文件中最大的一个视频。下载不足时播放会等待缓冲。'))
             if key == selected:
                 self.table.selectRow(row)
         self.table.blockSignals(False)
@@ -620,27 +651,23 @@ class Window(W.QMainWindow):
             self.table.selectRow(0)
         for label, value in zip(self.metrics, (str(len(self.engine.items)), str(running), size(down)+'/s', size(up)+'/s')):
             label.setText(value)
-        self.footer.setText('最小化到托盘后继续下载                                      关闭窗口或从托盘退出会停止下载')
+        self.footer.setText(tr('最小化到托盘后继续下载                                      关闭窗口或从托盘退出会停止下载'))
         if hasattr(self,'tray'):
-            self.tray.setToolTip(f'{APP_NAME} {VERSION}\n{running} 个运行任务 · ↓ {size(down)}/s · ↑ {size(up)}/s')
+            self.tray.setToolTip(tr('{v0} {v1}\n{v2} 个运行任务 · ↓ {v3}/s · ↑ {v4}/s', v0=f'{APP_NAME}', v1=f'{VERSION}', v2=f'{running}', v3=f'{size(down)}', v4=f'{size(up)}'))
         self.details()
 
     def details(self):
         key = self.key()
         if key not in self.engine.items:
-            self.detail.setPlainText('添加一个 .torrent 文件开始。\n\n没有速度时，请查看连接数和此处的状态信息。')
+            self.detail.setPlainText(tr('添加一个 .torrent 文件开始。\n\n没有速度时，请查看连接数和此处的状态信息。'))
             return
         item = self.engine.items[key]
         s = task_status(item)
         remaining = max(0, s.total_wanted - s.total_wanted_done)
-        eta = f'{remaining / s.download_payload_rate / 60:.0f} 分钟（估算）' if s.download_payload_rate else '等待有效速度'
+        eta = tr('{v0} 分钟（估算）', v0=f'{remaining / s.download_payload_rate / 60:.0f}') if s.download_payload_rate else tr('等待有效速度')
         if s.is_finished:
-            eta = '已完成'
-        self.detail.setPlainText(f"{item['name']}\n保存位置：{item['folder']}\n"
-            f"已完成：{size(s.total_wanted_done)} / {size(s.total_wanted)}   剩余时间：{eta}\n"
-            f"状态：{status_text(item, s)}   已连接来源：{s.num_peers}   已连接完整来源：{s.num_seeds}\n"
-            f"最近连接/存储提示：{item['message'] or '暂无错误记录'}\n"
-            '提示：暂时找不到来源不代表种子永久失效；本工具无法补出无人提供的分片。')
+            eta = tr('已完成')
+        self.detail.setPlainText(tr('{v0}\n保存位置：{v1}\n已完成：{v2} / {v3}   剩余时间：{v4}\n状态：{v5}   已连接来源：{v6}   已连接完整来源：{v7}\n最近连接/存储提示：{v8}\n提示：暂时找不到来源不代表种子永久失效；本工具无法补出无人提供的分片。', v0=f"{item['name']}", v1=f"{item['folder']}", v2=f'{size(s.total_wanted_done)}', v3=f'{size(s.total_wanted)}', v4=f'{eta}', v5=f'{status_text(item, s)}', v6=f'{s.num_peers}', v7=f'{s.num_seeds}', v8=f"{item['message'] or tr('暂无错误记录')}"))
 
     def closeEvent(self, event):
         self.shutdown()
@@ -670,7 +697,7 @@ def main():
     root.mkdir(parents=True, exist_ok=True)
     lock = QtCore.QLockFile(str(root / 'app.lock'))
     if not lock.tryLock(100):
-        W.QMessageBox.information(None, APP_NAME, '程序已经运行。若窗口已收起，请双击系统托盘中的 Logo 恢复；升级时先退出旧版本。')
+        W.QMessageBox.information(None, APP_NAME, tr('程序已经运行。若窗口已收起，请双击系统托盘中的 Logo 恢复；升级时先退出旧版本。'))
         return
     engine = Engine(root)
     window = Window(engine)

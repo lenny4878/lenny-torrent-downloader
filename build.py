@@ -21,12 +21,12 @@ resource.write_text(f'''VSVersionInfo(
  kids=[StringFileInfo([StringTable('040904B0',[
   StringStruct('CompanyName','Lenny'), StringStruct('FileDescription',{APP_NAME!r}),
   StringStruct('FileVersion',{VERSION!r}), StringStruct('ProductVersion',{VERSION!r}),
-  StringStruct('ProductName',{APP_NAME!r}), StringStruct('OriginalFilename','LennyTorrentDownloader.exe')
+  StringStruct('ProductName',{APP_NAME!r}), StringStruct('OriginalFilename','LennyTD.exe')
  ])]),VarFileInfo([VarStruct('Translation',[1033,1200])])])''','utf-8')
 subprocess.run([sys.executable,'-m','PyInstaller','--noconfirm','--clean','--onefile','--windowed',
- '--name','LennyTorrentDownloader','--icon',str(root/'assets'/'logo.png'),
+ '--name','LennyTD','--icon',str(root/'assets'/'logo.png'),
  '--add-data',f'{root / "assets"};assets','--version-file',str(resource),
  '--exclude-module','imageio_ffmpeg','--exclude-module','unittest',
  '--distpath',str(root/'dist'),'--workpath',str(work/'pyinstaller'),
  '--specpath',str(work),str(root/'app.py')],cwd=root,env=build_env,check=True)
-print('Built:',root/'dist'/'LennyTorrentDownloader.exe')
+print('Built:',root/'dist'/'LennyTD.exe')

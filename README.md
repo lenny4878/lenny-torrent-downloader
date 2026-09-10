@@ -1,10 +1,34 @@
-# Lenny's Torrent Downloader
+# LennyTD
 
-Windows 本地种子下载器，当前版本 **0.16**。
+**一个干净的 Windows 种子下载器：免安装、无广告、无捆绑、无需会员。**
+
+LennyTD（Lenny's Torrent Downloader）希望把下载软件做回简单的工具：添加任务，选好目录，然后下载。不用绕过推广弹窗，不用接受附带安装，也不用先开会员才能使用本应用的功能。
+
+做它的出发点很简单：厌倦下载工具里的广告、捆绑和会员入口，想要一个 clean 的本地下载器。
+
+[下载 Windows EXE](https://github.com/lenny4878/LennyTD/releases/latest) · [查看源码](https://github.com/lenny4878/LennyTD) · [反馈问题](https://github.com/lenny4878/LennyTD/issues)
+
+当前版本 **0.17**，支持 Windows x64。下载 `LennyTD.exe` 后直接运行，无需安装 Python。窗口内保留完整应用名称。
+
+## 能做什么
+
+- **种子和磁力链接**：支持 `.torrent`、Magnet 链接、拖放添加和文件选择。
+- **边下边看**：缓冲到起播条件后，用内置播放器观看已下载部分；支持暂停、音量和跳转。
+- **下载管理**：开始、一键暂停、停止、续传、任务排队以及上传/下载限速。
+- **自己选择保存位置**：文件夹选择器；双击已完成任务打开文件。
+- **删除由你决定**：只移除任务，或同时删除已下载文件。
+- **托盘后台下载**：收起窗口后继续下载，从托盘恢复或退出。
+- **五种界面语言**：简体中文、English、Deutsch、Français、日本語。右上角或设置中切换，即时生效并自动保存，正在下载的任务不重启。
+
+“干净”指本应用不内置广告、不附带第三方安装、不设账户登录和会员付费入口。免安装不代表完全不写文件：任务设置与续传记录保存在本机用户目录；下载内容保存在你选择的位置。
+
+下载速度取决于做种者、网络和资源活跃程度。LennyTD 不提供离线下载云服务，也无法凭空补齐无人分享的分片。边下边看的兼容性和缓冲说明见下文。
+
+如果它对你有帮助，欢迎给仓库一个 **Star**，也欢迎反馈问题、改进翻译和提交 PR。
 
 ## 启动
 
-直接运行 **LennyTorrentDownloader.exe**，无需另外安装 Python。本机文件在 `dist/`，Start.cmd 会优先打开该 EXE。
+直接运行 **LennyTD.exe**，无需另外安装 Python。本机文件在 `dist/`，Start.cmd 会优先打开该 EXE。
 
 后续更新使用相同 EXE 文件名，在窗口和文件属性内递增版本号。替换前先退出正在运行的程序，原任务数据和下载位置继续保留。
 
@@ -38,7 +62,7 @@ Windows 本地种子下载器，当前版本 **0.16**。
 
 ## 数据与升级
 
-源码只保留一套：app.py 为界面，engine.py 为下载和任务管理，streaming.py 为本地媒体服务，player.py 为播放器，version.py 为名称和版本号。后续直接更新为 0.12、0.13，不另建 V1/V2 项目。
+源码只保留一套：app.py 为界面，engine.py 为下载和任务管理，streaming.py 为本地媒体服务，player.py 为播放器，version.py 为名称和版本号。后续递增版本号，不另建 V1/V2 项目。
 
 为兼容既有下载，本机数据继续使用 `%LOCALAPPDATA%\Torrent_V1\data`。这是历史内部数据路径，不是当前程序版本；重命名应用不会丢失任务。下载内容仍在各任务原来的保存目录。
 
@@ -58,10 +82,12 @@ Windows 本地种子下载器，当前版本 **0.16**。
 
 ## 打包与版本管理
 
-安装 requirements-build.txt 后运行 Build.cmd，输出固定名称 `dist/LennyTorrentDownloader.exe`。PyInstaller 单文件程序包含 Python、Qt 和下载引擎，首次打开会解压运行组件到系统临时目录，正常退出后由打包运行时清理。
+安装 requirements-build.txt 后运行 Build.cmd，输出固定名称 `dist/LennyTD.exe`。PyInstaller 单文件程序包含 Python、Qt 和下载引擎，首次打开会解压运行组件到系统临时目录，正常退出后由打包运行时清理。
 
 修改 version.py 和 CHANGELOG.md → 运行 RunTests.cmd → 运行 Build.cmd → 验证 EXE → 发布新版本。构建配置及依赖版本保存在源码中。
 
-GitHub 源码仓库为私有备份；EXE 放在 Release 附件，不进入源码历史。虚拟环境、构建缓存、生成的测试视频/截图及个人下载数据均不上传。自动化测试代码保留，便于后续回归。
+GitHub 仓库公开托管源码；EXE 放在 Release 附件，不进入源码历史。虚拟环境、构建缓存、生成的测试视频/截图及个人下载数据均不上传。自动化测试代码保留，便于后续回归。
 
-正式公开开源前需确定项目许可证。依赖许可入口见 THIRD_PARTY_NOTICES.md。
+界面翻译保存在 i18n.py。系统原生文件选择窗口及第三方引擎的原始错误内容可能沿用系统或组件语言。
+
+依赖许可入口见 THIRD_PARTY_NOTICES.md；本项目尚未指定源码许可证，公开可见不等于已授予任意再分发许可。

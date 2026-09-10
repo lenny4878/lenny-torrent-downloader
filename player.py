@@ -1,3 +1,4 @@
+from i18n import tr
 from PySide6 import QtCore, QtGui, QtWidgets as W
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer, QVideoSink
 
@@ -27,7 +28,7 @@ class Player(W.QDialog):
     def __init__(self, url, title, parent=None):
         super().__init__(parent)
         self._released = False
-        self.setWindowTitle('边下边看 · ' + title)
+        self.setWindowTitle(tr('边下边看 · {v0}', v0=title))
         self.resize(960,620)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.setWindowFlag(QtCore.Qt.WindowMinMaxButtonsHint, True)
@@ -42,10 +43,10 @@ class Player(W.QDialog):
         self.sink.videoFrameChanged.connect(video.frame)
         self.media.setVideoSink(self.sink)
         self.audio.setVolume(.7)
-        self.note = W.QLabel('正在读取视频；下载速度不足时会等待缓冲。')
+        self.note = W.QLabel(tr('正在读取视频；下载速度不足时会等待缓冲。'))
         layout.addWidget(self.note)
         row = W.QHBoxLayout()
-        toggle = W.QPushButton('播放 / 暂停')
+        toggle = W.QPushButton(tr('播放 / 暂停'))
         toggle.clicked.connect(lambda: self.media.pause() if self.media.playbackState() == QMediaPlayer.PlayingState else self.media.play())
         row.addWidget(toggle)
         self.seek = W.QSlider(QtCore.Qt.Horizontal)
@@ -59,17 +60,17 @@ class Player(W.QDialog):
         volume.setValue(70)
         volume.setMaximumWidth(100)
         volume.valueChanged.connect(lambda n:self.audio.setVolume(n/100))
-        row.addWidget(W.QLabel('音量'))
+        row.addWidget(W.QLabel(tr('音量')))
         row.addWidget(volume)
         layout.addLayout(row)
-        self.media.errorOccurred.connect(lambda *_:self.note.setText('暂时无法播放：'+self.media.errorString()+'。可继续下载后重新打开。'))
+        self.media.errorOccurred.connect(lambda *_:self.note.setText(tr('暂时无法播放：')+self.media.errorString()+tr('。可继续下载后重新打开。')))
         self.media.setSource(QtCore.QUrl(url))
         self.media.play()
 
     def position(self, n):
         if not self.seek.isSliderDown():
             self.seek.setValue(int(n))
-        self.note.setText(f'{n//60000:02d}:{n//1000%60:02d} / {self.media.duration()//60000:02d}:{self.media.duration()//1000%60:02d}   ·   跳转到未下载位置可能需要缓冲')
+        self.note.setText(tr('{v0}:{v1} / {v2}:{v3}   ·   跳转到未下载位置可能需要缓冲', v0=f'{n // 60000:02d}', v1=f'{n // 1000 % 60:02d}', v2=f'{self.media.duration() // 60000:02d}', v3=f'{self.media.duration() // 1000 % 60:02d}'))
 
     def closeEvent(self,event):
         self.release_playback()

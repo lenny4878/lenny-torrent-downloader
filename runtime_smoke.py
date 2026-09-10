@@ -20,6 +20,11 @@ def run(report,video=None):
         engine=Engine(root,dict(enable_dht=False,enable_lsd=False))
         window=Window(engine)
         window.show()
+        from i18n import LANGUAGES, tr
+        for code in LANGUAGES:
+            window.change_language(code=code)
+            assert window.table.horizontalHeaderItem(0).text() == tr('名称')
+        result['languages'] = list(LANGUAGES)
         assert not window.windowIcon().isNull()
         result.update(engine=True,logo=True,tray_available=W.QSystemTrayIcon.isSystemTrayAvailable())
         if result['tray_available']:

@@ -8,4 +8,4 @@ The Windows executable bundles components from these projects:
 - PyInstaller bootloader — GPL with the bootloader distribution exception: https://pyinstaller.org/en/stable/license.html
 - Qt Multimedia may use FFmpeg and platform media components: https://doc.qt.io/qt-6/qtmultimedia-index.html
 
-This repository is currently a private development backup. No project-wide open-source license has been selected. A public binary distribution should include the applicable bundled component license texts and meet their distribution obligations.
+This repository is publicly accessible as LennyTD. No project-wide source license has been selected. Third-party components remain governed by their respective licenses; public visibility does not change those terms.
